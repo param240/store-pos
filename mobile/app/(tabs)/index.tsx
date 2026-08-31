@@ -4,24 +4,17 @@ import { useRouter } from 'expo-router';
 import { ProductCard } from '@/components/ProductCard';
 import { SearchBar } from '@/components/SearchBar';
 import { useProducts } from '@/hooks/useProducts';
-import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppState } from '@/hooks/useAppState';
 import { useCartStore } from '@/store/cartStore';
-import { useProductStore } from '@/store/productStore';
-import type { Product, SyncEvent } from '@/types';
+import type { Product } from '@/types';
 
 export default function ProductsScreen() {
   const router = useRouter();
   const { products, isLoading, nextCursor, loadNextPage } = useProducts();
   const addItem = useCartStore((s) => s.addItem);
-  const applySync = useProductStore((s) => s.applySync);
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
 
   const displayProducts = searchResults ?? products;
-
-  useWebSocket((event: SyncEvent) => {
-    console.log('sync event', event);
-  });
 
   useAppState(() => {
     // foreground resume

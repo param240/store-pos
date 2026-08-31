@@ -28,6 +28,7 @@ interface ProductState {
   loadCategories: () => Promise<void>;
   loadTags: () => Promise<void>;
   bumpProduct: (id: number, expectedVersion: number) => Promise<void>;
+  applySyncEvent: (event: SyncEvent) => void;
   applySync: (response: SyncResponse) => void;
 }
 
@@ -58,6 +59,21 @@ function mergeById(existing: Product[], incoming: Product[]): Product[] {
   const byId = new Map(existing.map((p) => [p.id, p]));
   for (const p of incoming) byId.set(p.id, p);
   return Array.from(byId.values());
+}
+
+// Categories are a nested tree, so walk children to find the bumped one.
+function bumpCategoryVersion(categories: Category[], event: SyncEvent): Category[] {
+  return categories.map((c) => {
+    if (c.id === event.entity_id) {
+      return event.version > c.version
+        ? { ...c, version: event.version, updated_at: event.updated_at }
+        : c;
+    }
+    if (c.children && c.children.length) {
+      return { ...c, children: bumpCategoryVersion(c.children, event) };
+    }
+    return c;
+  });
 }
 
 export const useProductStore = create<ProductState>((set, get) => ({
@@ -181,13 +197,38 @@ export const useProductStore = create<ProductState>((set, get) => ({
     }
   },
 
+  // Apply a single bump (from the WebSocket) to whichever entity it targets,
+  // ignoring anything not newer than what we already hold.
+  applySyncEvent: (event: SyncEvent) => {
+    set((state) => {
+      const patch: Partial<ProductState> = {
+        lastSyncVersion: Math.max(state.lastSyncVersion, event.version),
+      };
+      switch (event.type) {
+        case 'product_bump':
+          patch.products = state.products.map((p) =>
+            p.id === event.entity_id && event.version > p.version
+              ? { ...p, version: event.version, updated_at: event.updated_at }
+              : p
+          );
+          break;
+        case 'category_bump':
+          patch.categories = bumpCategoryVersion(state.categories, event);
+          break;
+        case 'tag_bump':
+          patch.tags = state.tags.map((t) =>
+            t.id === event.entity_id && event.version > t.version
+              ? { ...t, version: event.version, updated_at: event.updated_at }
+              : t
+          );
+          break;
+      }
+      return patch;
+    });
+  },
+
   applySync: (response: SyncResponse) => {
-    const allEvents: SyncEvent[] = [
-      ...response.products,
-      ...response.categories,
-      ...response.tags,
-    ];
-    const maxVersion = allEvents.reduce((max, e) => Math.max(max, e.version), get().lastSyncVersion);
-    set({ lastSyncVersion: maxVersion });
+    const { applySyncEvent } = get();
+    [...response.products, ...response.categories, ...response.tags].forEach(applySyncEvent);
   },
 }));

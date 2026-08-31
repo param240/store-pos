@@ -98,6 +98,22 @@ entire catalog in the background (200 at a time, ~25 requests) into the product
 store, which doubles as the offline cache. Search then filters that full set by
 name and description, debounced so typing stays smooth.
 
+### Real-time sync
+
+The app now holds a single WebSocket connection (mounted in `app/_layout.tsx` so
+it's live on every screen) and applies bump events straight into local state -
+the product/category/tag's version updates in place, no reload. `useWebSocket`
+was rewritten to close on unmount, reconnect with backoff when the connection
+drops, keep its handler in a ref, and ignore malformed frames. Events only apply
+when they're newer than what we hold, so a stale or out-of-order message can't
+walk a version backwards. The catch-up poller reuses the same apply logic, so it
+and the socket converge on the same state. Verified by bumping a product from
+another client and watching the card tick from v2 to v3 within a couple seconds.
+
+One thing I skipped on purpose: a live event updates memory but doesn't rewrite
+the whole chunked cache (too expensive per event) - the cache catches up on the
+next background refresh.
+
 ## Conflict resolution
 
 (to be filled in)
