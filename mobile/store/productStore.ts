@@ -69,7 +69,9 @@ export const useProductStore = create<ProductState>((set, get) => ({
   catalogLoaded: false,
   isOffline: false,
   nextCursor: null,
-  lastSyncVersion: 0,
+  // Seed baseline is version 1, so /sync?since=1 returns only entities bumped
+  // since seed - starting at 0 would pull the whole catalog every poll.
+  lastSyncVersion: 1,
   error: null,
 
   hydrateFromCache: async () => {
@@ -84,7 +86,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
       if (products.length) patch.products = products;
       if (categoriesRaw) patch.categories = JSON.parse(categoriesRaw);
       if (tagsRaw) patch.tags = JSON.parse(tagsRaw);
-      if (versionRaw) patch.lastSyncVersion = Number(versionRaw);
+      if (versionRaw) patch.lastSyncVersion = Math.max(1, Number(versionRaw));
       if (Object.keys(patch).length) set(patch);
     } catch {
       // A corrupt/unreadable cache shouldn't block startup.

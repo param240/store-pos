@@ -44,6 +44,15 @@ carries its own `cursor`, so I page using the last returned item's cursor
 instead of trusting `next_cursor` (I only use `next_cursor` to know if there's
 more). That gets all 5000.
 
+### Sync poller was leaking timers
+
+`useSyncPoller` never cleared its `setInterval` and re-ran on every
+`sinceVersion` change, so intervals stacked up over time (a likely cause of the
+app going sluggish). Rewrote it to clear on cleanup, keep values in refs so the
+timer isn't rebuilt, guard overlapping polls, and catch offline errors. Wired it
+into `app/_layout.tsx` as a periodic catch-up. Watermark starts at 1, not 0,
+since everything is seeded at version 1 and `/sync` filters `version > since`
+
 ## Features
 
 ### Offline cache

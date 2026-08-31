@@ -4,9 +4,15 @@ import NetInfo from '@react-native-community/netinfo';
 import { useCartStore } from '@/store/cartStore';
 import { useProductStore } from '@/store/productStore';
 import { useSyncStore } from '@/store/syncStore';
+import { useSyncPoller } from '@/hooks/useSyncPoller';
 
 export default function RootLayout() {
   const initDeviceId = useCartStore((s) => s.initDeviceId);
+  const lastSyncVersion = useProductStore((s) => s.lastSyncVersion);
+  const applySync = useProductStore((s) => s.applySync);
+
+  // Periodic catch-up in case a WebSocket bump was missed.
+  useSyncPoller(lastSyncVersion, applySync);
 
   useEffect(() => {
     initDeviceId();
