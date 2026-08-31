@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '@/services/api';
+import { api, ConflictError } from '@/services/api';
 import {
+  BUMP_QUEUE_KEY,
   CATALOG_CHUNK_SIZE,
   CATALOG_PAGE_SIZE,
   CATEGORIES_KEY,
@@ -9,7 +10,13 @@ import {
   SYNC_VERSION_KEY,
   TAGS_KEY,
 } from '@/constants/config';
+import { useSyncStore } from '@/store/syncStore';
 import type { Category, Product, SyncEvent, SyncResponse, Tag } from '@/types';
+
+interface PendingBump {
+  id: number;
+  expectedVersion: number;
+}
 
 interface ProductState {
   products: Product[];
@@ -21,6 +28,7 @@ interface ProductState {
   isOffline: boolean;
   nextCursor: string | null;
   lastSyncVersion: number;
+  pendingBumps: PendingBump[];
   error: string | null;
   hydrateFromCache: () => Promise<void>;
   preloadCatalog: (force?: boolean) => Promise<void>;
@@ -28,6 +36,7 @@ interface ProductState {
   loadCategories: () => Promise<void>;
   loadTags: () => Promise<void>;
   bumpProduct: (id: number, expectedVersion: number) => Promise<void>;
+  flushBumps: () => Promise<void>;
   applySyncEvent: (event: SyncEvent) => void;
   applySync: (response: SyncResponse) => void;
 }
@@ -61,6 +70,33 @@ function mergeById(existing: Product[], incoming: Product[]): Product[] {
   return Array.from(byId.values());
 }
 
+const MAX_REBASE = 3;
+let flushing = false;
+
+async function persistBumps(queue: PendingBump[]) {
+  await AsyncStorage.setItem(BUMP_QUEUE_KEY, JSON.stringify(queue));
+}
+
+// Push a bump, rebasing onto the server's current version if it rejects with a
+// 409. A bump carries no data of its own, so re-applying it on top of newer
+// server state loses nothing. Returns the resulting version.
+async function pushBump(id: number, expected: number): Promise<number> {
+  let expectedVersion = expected;
+  for (let attempt = 0; attempt <= MAX_REBASE; attempt++) {
+    try {
+      const result = await api.bumpProduct(id, expectedVersion);
+      return result.version;
+    } catch (e) {
+      if (e instanceof ConflictError) {
+        expectedVersion = e.currentVersion; // adopt server truth, retry on top
+        continue;
+      }
+      throw e; // network/other - let the caller keep it queued
+    }
+  }
+  throw new ConflictError(expectedVersion); // couldn't converge in time
+}
+
 // Categories are a nested tree, so walk children to find the bumped one.
 function bumpCategoryVersion(categories: Category[], event: SyncEvent): Category[] {
   return categories.map((c) => {
@@ -88,21 +124,24 @@ export const useProductStore = create<ProductState>((set, get) => ({
   // Seed baseline is version 1, so /sync?since=1 returns only entities bumped
   // since seed - starting at 0 would pull the whole catalog every poll.
   lastSyncVersion: 1,
+  pendingBumps: [],
   error: null,
 
   hydrateFromCache: async () => {
     try {
-      const [products, categoriesRaw, tagsRaw, versionRaw] = await Promise.all([
+      const [products, categoriesRaw, tagsRaw, versionRaw, bumpsRaw] = await Promise.all([
         readProducts(),
         AsyncStorage.getItem(CATEGORIES_KEY),
         AsyncStorage.getItem(TAGS_KEY),
         AsyncStorage.getItem(SYNC_VERSION_KEY),
+        AsyncStorage.getItem(BUMP_QUEUE_KEY),
       ]);
       const patch: Partial<ProductState> = {};
       if (products.length) patch.products = products;
       if (categoriesRaw) patch.categories = JSON.parse(categoriesRaw);
       if (tagsRaw) patch.tags = JSON.parse(tagsRaw);
       if (versionRaw) patch.lastSyncVersion = Math.max(1, Number(versionRaw));
+      if (bumpsRaw) patch.pendingBumps = JSON.parse(bumpsRaw);
       if (Object.keys(patch).length) set(patch);
     } catch {
       // A corrupt/unreadable cache shouldn't block startup.
@@ -184,16 +223,59 @@ export const useProductStore = create<ProductState>((set, get) => ({
     }
   },
 
+  // Optimistically reflect the bump (so it shows even offline), queue the intent,
+  // then try to flush. The queue survives a kill and replays on reconnect.
   bumpProduct: async (id: number, expectedVersion: number) => {
+    set((state) => ({
+      products: state.products.map((p) =>
+        p.id === id ? { ...p, version: expectedVersion + 1 } : p
+      ),
+      pendingBumps: [...state.pendingBumps, { id, expectedVersion }],
+    }));
+    persistBumps(get().pendingBumps);
+    await get().flushBumps();
+  },
+
+  flushBumps: async () => {
+    if (flushing) return;
+    flushing = true;
     try {
-      const result = await api.bumpProduct(id, expectedVersion);
-      set((state) => ({
-        products: state.products.map((p) =>
-          p.id === id ? { ...p, version: result.version } : p
-        ),
-      }));
-    } catch (e) {
-      console.error('Bump failed', e);
+      while (get().pendingBumps.length) {
+        const next = get().pendingBumps[0];
+        try {
+          const newVersion = await pushBump(next.id, next.expectedVersion);
+          set((state) => ({
+            products: state.products.map((p) =>
+              p.id === next.id ? { ...p, version: newVersion } : p
+            ),
+            pendingBumps: state.pendingBumps.slice(1),
+            lastSyncVersion: Math.max(state.lastSyncVersion, newVersion),
+          }));
+        } catch (e) {
+          if (e instanceof ConflictError) {
+            // Rebase couldn't converge - accept the server version and log it.
+            const server = e.currentVersion;
+            useSyncStore.getState().addConflict({
+              entityType: 'product',
+              entityId: next.id,
+              localVersion: get().products.find((p) => p.id === next.id)?.version ?? 0,
+              serverVersion: server,
+              detectedAt: new Date().toISOString(),
+            });
+            set((state) => ({
+              products: state.products.map((p) =>
+                p.id === next.id ? { ...p, version: server } : p
+              ),
+              pendingBumps: state.pendingBumps.slice(1),
+            }));
+          } else {
+            break; // network error - keep the queue, retry on reconnect
+          }
+        }
+        persistBumps(get().pendingBumps);
+      }
+    } finally {
+      flushing = false;
     }
   },
 

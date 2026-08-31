@@ -1,5 +1,14 @@
 import { API_URL, PAGE_SIZE } from '@/constants/config';
-import type { Cart, Category, Order, Product, ProductsResponse, SyncResponse, Tag } from '@/types';
+import type { Cart, Category, Order, ProductsResponse, SyncResponse, Tag } from '@/types';
+
+export class ConflictError extends Error {
+  currentVersion: number;
+  constructor(currentVersion: number) {
+    super('version_conflict');
+    this.name = 'ConflictError';
+    this.currentVersion = currentVersion;
+  }
+}
 
 class ApiClient {
   private baseUrl: string;
@@ -16,18 +25,16 @@ class ApiClient {
     return res.json();
   }
 
-  async getProduct(id: number): Promise<Product> {
-    const res = await fetch(`${this.baseUrl}/products/${id}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  }
-
   async bumpProduct(id: number, expectedVersion: number): Promise<{ id: number; version: number }> {
     const res = await fetch(`${this.baseUrl}/products/${id}/bump`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expected_version: expectedVersion }),
     });
+    if (res.status === 409) {
+      const body = await res.json();
+      throw new ConflictError(body.current_version);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   }

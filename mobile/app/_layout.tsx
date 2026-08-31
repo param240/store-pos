@@ -27,6 +27,7 @@ export default function RootLayout() {
       store.loadCategories();
       store.loadTags();
       store.preloadCatalog();
+      store.flushBumps(); // replay any bumps queued before a previous kill
     });
 
     let bootstrapped = false;
@@ -41,6 +42,7 @@ export default function RootLayout() {
         s.preloadCatalog(true);
         s.loadCategories();
         s.loadTags();
+        s.flushBumps();
       }
     });
 

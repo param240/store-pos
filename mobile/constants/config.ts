@@ -12,3 +12,4 @@ export const PRODUCTS_KEY = 'surat_catalog_products';
 export const CATEGORIES_KEY = 'surat_categories';
 export const TAGS_KEY = 'surat_tags';
 export const SYNC_VERSION_KEY = 'surat_last_sync_version';
+export const BUMP_QUEUE_KEY = 'surat_pending_bumps';

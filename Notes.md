@@ -116,7 +116,31 @@ next background refresh.
 
 ## Conflict resolution
 
-(to be filled in)
+Strategy: **server wins, then rebase**. A bump only ever increments a version and
+carries no data of its own, so when the server rejects our push there's nothing
+to lose by re-applying the increment on top of the server's newer version.
+
+The flow: `bumpProduct` optimistically bumps the local version (so it shows even
+offline), drops the intent into a persisted queue, and tries to flush. On flush
+each bump is pushed to the server; a 409 comes back with the server's
+`current_version`, so we adopt that and retry the bump against it, up to a few
+times. Network failures leave the queue alone and it replays on the next
+reconnect (wired from the NetInfo listener and on startup). If the rebase somehow
+can't converge after a few tries we take the server's version and log the
+conflict into `pendingConflicts` rather than looping forever. `api.bumpProduct`
+had to be changed to actually surface the 409 body (`ConflictError`) instead of
+throwing a generic error that dropped `current_version`.
+
+Two related fixes came with this: the product detail screen loaded through
+`GET /products/:id`, which doesn't exist (404), so it was broken - it now reads
+the product from the already-preloaded catalog, which also makes the version tick
+live. And bumps queued while offline survive an app kill since the queue is
+persisted.
+
+Skipped: category/tag bumps aren't queued (nothing in the UI triggers them, but
+the same helper would generalize), and there's no dedicated conflict banner -
+the rebase resolves the normal case silently and anything unresolved lands in
+`pendingConflicts`.
 
 ## Skipped / not done
 
