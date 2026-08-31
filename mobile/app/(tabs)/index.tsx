@@ -53,7 +53,7 @@ export default function ProductsScreen() {
 
   return (
     <View style={styles.container}>
-      <SearchBar onResults={(r) => setSearchResults(r.length > 0 ? r : null)} />
+      <SearchBar onResults={setSearchResults} />
       {isLoading && products.length === 0 ? (
         <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
       ) : (

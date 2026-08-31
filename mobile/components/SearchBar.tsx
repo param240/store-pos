@@ -1,31 +1,33 @@
-import React, { useState } from 'react';
-import { TextInput, View, StyleSheet, ActivityIndicator } from 'react-native';
-import { api } from '@/services/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { TextInput, View, StyleSheet } from 'react-native';
+import { useProductSearch } from '@/hooks/useProducts';
 import type { Product } from '@/types';
 
 interface Props {
-  onResults: (products: Product[]) => void;
+  onResults: (products: Product[] | null) => void;
 }
 
 export function SearchBar({ onResults }: Props) {
   const [query, setQuery] = useState('');
-  const [searching, setSearching] = useState(false);
+  const { search } = useProductSearch();
+  const timer = useRef<ReturnType<typeof setTimeout>>();
 
-  const handleChange = async (text: string) => {
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
+
+  const handleChange = (text: string) => {
     setQuery(text);
+    if (timer.current) clearTimeout(timer.current);
+
     if (!text.trim()) {
-      onResults([]);
+      onResults(null);
       return;
     }
-    setSearching(true);
-    try {
-      const results = await api.searchProducts(text);
-      onResults(results);
-    } catch {
-      onResults([]);
-    } finally {
-      setSearching(false);
-    }
+
+    timer.current = setTimeout(() => onResults(search(text)), 250);
   };
 
   return (
@@ -38,7 +40,6 @@ export function SearchBar({ onResults }: Props) {
         placeholderTextColor="#9e9e9e"
         returnKeyType="search"
       />
-      {searching && <ActivityIndicator size="small" color="#1976d2" style={styles.spinner} />}
     </View>
   );
 }
@@ -46,5 +47,4 @@ export function SearchBar({ onResults }: Props) {
 const styles = StyleSheet.create({
   container: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 8, paddingHorizontal: 12, marginBottom: 12 },
   input: { flex: 1, height: 44, fontSize: 14, color: '#333' },
-  spinner: { marginLeft: 8 },
 });
