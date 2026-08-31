@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import type { Product } from '@/types';
 
@@ -10,7 +10,7 @@ interface Props {
   onAddToCart?: (product: Product) => void;
 }
 
-export function ProductCard({ product, onPress, onAddToCart }: Props) {
+export const ProductCard = memo(function ProductCard({ product, onPress, onAddToCart }: Props) {
   const key = String(product.id);
   if (!imageCache.has(key)) {
     imageCache.set(key, `https://picsum.photos/seed/${product.id}/300/200`);
@@ -39,7 +39,7 @@ export function ProductCard({ product, onPress, onAddToCart }: Props) {
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 8, marginBottom: 8, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },

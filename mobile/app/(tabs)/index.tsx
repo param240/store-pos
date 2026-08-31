@@ -38,6 +38,19 @@ export default function ProductsScreen() {
     [addItem]
   );
 
+  const openProduct = useCallback(
+    (product: Product) => router.push(`/product/${product.id}`),
+    [router]
+  );
+
+  const renderItem = useCallback(({ item }: { item: Product }) => (
+    <ProductCard
+      product={item}
+      onPress={openProduct}
+      onAddToCart={handleAddToCart}
+    />
+  ), [openProduct, handleAddToCart]);
+
   return (
     <View style={styles.container}>
       <SearchBar onResults={(r) => setSearchResults(r.length > 0 ? r : null)} />
@@ -45,18 +58,17 @@ export default function ProductsScreen() {
         <ActivityIndicator size="large" color="#1976d2" style={styles.loader} />
       ) : (
         <FlatList
+          keyExtractor={(item) => String(item.id)}
           data={displayProducts}
-          renderItem={({ item }) => (
-            <ProductCard
-              product={item}
-              onPress={(p) => router.push(`/product/${p.id}`)}
-              onAddToCart={handleAddToCart}
-            />
-          )}
+          renderItem={renderItem}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.3}
           ListFooterComponent={isLoading ? <ActivityIndicator color="#1976d2" /> : null}
           contentContainerStyle={styles.list}
+          removeClippedSubviews
+          initialNumToRender={8}
+          maxToRenderPerBatch={10}
+          windowSize={7}
         />
       )}
     </View>
