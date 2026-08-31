@@ -6,6 +6,7 @@ import { useProductStore } from '@/store/productStore';
 import { useSyncStore } from '@/store/syncStore';
 import { useSyncPoller } from '@/hooks/useSyncPoller';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppState } from '@/hooks/useAppState';
 
 export default function RootLayout() {
   const initDeviceId = useCartStore((s) => s.initDeviceId);
@@ -17,6 +18,13 @@ export default function RootLayout() {
   // Live updates from other devices, with a periodic poll as a catch-up.
   useWebSocket(applySyncEvent, setConnected);
   useSyncPoller(lastSyncVersion, applySync);
+
+  // Returning to the foreground: pull the delta and replay any queued bumps.
+  useAppState(() => {
+    const s = useProductStore.getState();
+    s.backgroundSync();
+    s.flushBumps();
+  });
 
   useEffect(() => {
     initDeviceId();

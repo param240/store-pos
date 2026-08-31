@@ -114,6 +114,25 @@ One thing I skipped on purpose: a live event updates memory but doesn't rewrite
 the whole chunked cache (too expensive per event) - the cache catches up on the
 next background refresh.
 
+### Background sync
+
+When the app comes back to the foreground it hits `/sync?since=<last known
+version>` and applies just the changed entities - no full reload. It reuses the
+same apply path as the WebSocket, so it's really just a catch-up for anything
+that happened while the app was backgrounded and the socket was asleep. Queued
+bumps get replayed at the same moment. The `useAppState` hook it hangs off of was
+also leaking its listener, so that's cleaned up too. Coming back online is
+handled separately (the NetInfo listener does a fuller catalog refresh, since
+that can also pick up added/removed products, not just version bumps).
+
+Worth being upfront about a limitation here: `/sync` filters on `version >
+since`, but versions are per-entity, so if we advance our watermark to the
+highest version we've seen, a different entity bumped to a lower number while we
+were away can be missed by the diff. The live WebSocket covers the normal case;
+this is only a gap for the exact window where the app is backgrounded and an
+older-numbered entity changes. Fixing it properly would need a backend change
+(e.g. a global change sequence), which is off limits.
+
 ## Conflict resolution
 
 Strategy: **server wins, then rebase**. A bump only ever increments a version and

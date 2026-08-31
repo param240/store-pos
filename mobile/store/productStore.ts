@@ -37,6 +37,7 @@ interface ProductState {
   loadTags: () => Promise<void>;
   bumpProduct: (id: number, expectedVersion: number) => Promise<void>;
   flushBumps: () => Promise<void>;
+  backgroundSync: () => Promise<void>;
   applySyncEvent: (event: SyncEvent) => void;
   applySync: (response: SyncResponse) => void;
 }
@@ -312,5 +313,16 @@ export const useProductStore = create<ProductState>((set, get) => ({
   applySync: (response: SyncResponse) => {
     const { applySyncEvent } = get();
     [...response.products, ...response.categories, ...response.tags].forEach(applySyncEvent);
+  },
+
+  // On returning to the foreground, pull just what changed since our last known
+  // version and apply the deltas - no full reload.
+  backgroundSync: async () => {
+    try {
+      const res = await api.getSync(get().lastSyncVersion);
+      get().applySync(res);
+    } catch {
+      // Offline or transient - the poller / reconnect refresh will catch up.
+    }
   },
 }));

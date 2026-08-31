@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { ProductCard } from '@/components/ProductCard';
 import { SearchBar } from '@/components/SearchBar';
 import { useProducts } from '@/hooks/useProducts';
-import { useAppState } from '@/hooks/useAppState';
 import { useCartStore } from '@/store/cartStore';
 import type { Product } from '@/types';
 
@@ -15,10 +14,6 @@ export default function ProductsScreen() {
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
 
   const displayProducts = searchResults ?? products;
-
-  useAppState(() => {
-    // foreground resume
-  });
 
   const handleEndReached = useCallback(() => {
     if (!searchResults) loadNextPage();

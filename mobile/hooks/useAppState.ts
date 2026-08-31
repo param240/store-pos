@@ -1,12 +1,14 @@
-import { useEffect } from 'react';
-import { AppState } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 
 export function useAppState(onForeground: () => void) {
+  const onForegroundRef = useRef(onForeground);
+  onForegroundRef.current = onForeground;
+
   useEffect(() => {
-    AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') {
-        onForeground();
-      }
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'active') onForegroundRef.current();
     });
-  }, [onForeground]);
+    return () => sub.remove();
+  }, []);
 }
