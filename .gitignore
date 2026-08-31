@@ -1,0 +1,19 @@
+# Internal assessment docs — never share with candidates
+.internal/
+
+# Backend
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# Mobile
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/android/
+mobile/ios/
+mobile/.env
+
+# General
+.DS_Store
+*.log
