@@ -5,7 +5,7 @@ import { CartBadge } from '@/components/CartBadge';
 import { api } from '@/services/api';
 
 export default function CartScreen() {
-  const { cart, loadCart, removeItem } = useCartStore();
+  const { cart, loadCart, removeItem, clearCart } = useCartStore();
 
   useEffect(() => {
     loadCart();
@@ -15,8 +15,8 @@ export default function CartScreen() {
     const deviceId = useCartStore.getState().deviceId;
     try {
       await api.createOrder(deviceId);
+      await clearCart();
       Alert.alert('Order created', 'Your order is in draft. Go to Orders to pay.');
-      loadCart();
     } catch {
       Alert.alert('Error', 'Could not create order.');
     }

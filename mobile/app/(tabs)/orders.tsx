@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { api } from '@/services/api';
 import { useCartStore } from '@/store/cartStore';
 import type { Order } from '@/types';
@@ -17,9 +18,12 @@ export default function OrdersScreen() {
     }
   };
 
-  useEffect(() => {
-    if (deviceId) loadOrders();
-  }, [deviceId]);
+  // Tab screens stay mounted, so refetch every time this tab regains focus.
+  useFocusEffect(
+    useCallback(() => {
+      if (deviceId) loadOrders();
+    }, [deviceId])
+  );
 
   const handlePay = async (orderId: number) => {
     try {

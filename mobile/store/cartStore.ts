@@ -18,6 +18,7 @@ interface CartState {
   addItem: (productId: number, quantity: number, note?: string, scheduledDelivery?: string) => Promise<void>;
   removeItem: (productId: number) => Promise<void>;
   updateItem: (productId: number, quantity: number, note?: string) => Promise<void>;
+  clearCart: () => Promise<void>;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
@@ -81,5 +82,20 @@ export const useCartStore = create<CartState>((set, get) => ({
       device_id: deviceId,
     });
     set({ cart });
+  },
+
+  // The backend keeps the cart around after an order, so empty it ourselves.
+  clearCart: async () => {
+    const { deviceId, cart } = get();
+    const items = cart?.items ?? [];
+    let latest = cart;
+    for (const item of items) {
+      latest = await api.cartAction({
+        action: 'remove',
+        product_id: item.product_id,
+        device_id: deviceId,
+      });
+    }
+    set({ cart: latest });
   },
 }));

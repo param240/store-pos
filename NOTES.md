@@ -56,6 +56,21 @@ timer isn't rebuilt, guard overlapping polls, and catch offline errors. Wired it
 into `app/_layout.tsx` as a periodic catch-up. Watermark starts at 1, not 0,
 since everything is seeded at version 1 and `/sync` filters `version > since`
 
+### Cart wasn't cleared after placing an order
+
+Creating an order leaves the cart untouched - the backend order just references
+the cart id and doesn't empty it, and there's no clear action in the cart API.
+So after placing an order the same items were still sitting in the cart. Added a
+`clearCart` that removes each item and call it after the order is created.
+Clearing is safe because orders don't snapshot their items.
+
+### Orders tab didn't refresh when you came back to it
+
+The orders list was fetched in a `useEffect` keyed on `deviceId`, but tab screens
+stay mounted, so switching back to the tab never refetched - you had to pull to
+refresh to see a new order. Switched it to `useFocusEffect` so it reloads every
+time the tab regains focus.
+
 ## Features
 
 ### Offline cache
