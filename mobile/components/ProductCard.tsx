@@ -2,8 +2,6 @@ import React, { memo } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import type { Product } from '@/types';
 
-const imageCache = new Map<string, string>();
-
 interface Props {
   product: Product;
   onPress?: (product: Product) => void;
@@ -11,11 +9,7 @@ interface Props {
 }
 
 export const ProductCard = memo(function ProductCard({ product, onPress, onAddToCart }: Props) {
-  const key = String(product.id);
-  if (!imageCache.has(key)) {
-    imageCache.set(key, `https://picsum.photos/seed/${product.id}/300/200`);
-  }
-  const imageUrl = imageCache.get(key)!;
+  const imageUrl = `https://picsum.photos/seed/${product.id}/300/200`;
 
   return (
     <TouchableOpacity style={styles.card} onPress={() => onPress?.(product)}>

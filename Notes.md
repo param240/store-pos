@@ -21,6 +21,9 @@ it was janky while scrolling. Fixes in `mobile/app/(tabs)/index.tsx` and
 - Gave the Flatlist some render-window settings (initialNumToRender,
   maxToRenderPerBatch, windowSize, removeClippedSubviews) so it isn't mounting
   the entire catalog upfront.
+- Removed a module-level Map in ProductCard that cached an image url per product
+  and never released it - it grew one entry per product for the whole session.
+  The url is just derived from the id, so there was nothing to cache.
 
 ### Cart type wasn't imported
 
@@ -163,4 +166,29 @@ the rebase resolves the normal case silently and anything unresolved lands in
 
 ## Skipped / not done
 
-(to be filled in)
+**Native modules (the bonus).** I left both native challenges as skeletons and
+went deep on the JS side instead, since they need a prebuild / dev build and
+can't run in Expo Go, which is where the rest of this was built and tested. For
+the record, how I'd do them:
+
+- Android `SyncBackgroundTask` (Kotlin): a WorkManager `PeriodicWorkRequest` on a
+  15-minute interval whose `doWork()` reads the last known version from
+  SharedPreferences, calls `/sync?since=...`, writes the new version back, and
+  returns `Result.success()` (or `retry()` on failure). Enqueue it with
+  `enqueueUniquePeriodicWork(..., KEEP, ...)` on app launch so it survives kills
+  and restarts.
+- iOS `RNKeepAliveManager` (Obj-C): `enable`/`disable` methods that set
+  `[UIApplication sharedApplication].idleTimerDisabled` on the main queue
+  (`requiresMainQueueSetup`), exposed through `RCT_EXPORT_METHOD` so JS can call
+  `NativeModules.RNKeepAliveManager.enable()` during operating hours.
+
+**Product images are remote.** Cards load images from picsum.photos, so they
+won't show while offline even though the catalog data does. Real product imagery
+would want to be cached on disk (e.g. expo-image with its cache, or prefetching
+into the file system) - out of scope here, but worth flagging for the offline
+story.
+
+**Backend left untouched** per the README. A few things I worked around rather
+than fixed at the source: the cursor pagination off-by-one, `/products?search=`
+not being implemented, no `GET /products/:id`, and `/sync`'s per-entity version
+watermark. Each is covered in the sections above.
