@@ -67,9 +67,14 @@ Clearing is safe because orders don't snapshot their items.
 ### Orders tab didn't refresh when you came back to it
 
 The orders list was fetched in a `useEffect` keyed on `deviceId`, but tab screens
-stay mounted, so switching back to the tab never refetched - you had to pull to
+stay mounted, so switching back to the tab never refetched - user had to pull to
 refresh to see a new order. Switched it to `useFocusEffect` so it reloads every
 time the tab regains focus.
+
+### Add-to-cart feedback
+
+Adding to the cart gave no confirmation, so I added a small non-blocking "Added
+to cart" toast message.
 
 ## Features
 

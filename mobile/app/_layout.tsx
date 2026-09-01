@@ -7,6 +7,7 @@ import { useSyncStore } from '@/store/syncStore';
 import { useSyncPoller } from '@/hooks/useSyncPoller';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppState } from '@/hooks/useAppState';
+import { Toast } from '@/components/Toast';
 
 export default function RootLayout() {
   const initDeviceId = useCartStore((s) => s.initDeviceId);
@@ -58,10 +59,13 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="product/[id]" options={{ title: 'Product Detail' }} />
-      <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
-    </Stack>
+    <>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="product/[id]" options={{ title: 'Product Detail' }} />
+        <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
+      </Stack>
+      <Toast />
+    </>
   );
 }

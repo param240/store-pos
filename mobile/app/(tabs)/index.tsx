@@ -5,12 +5,14 @@ import { ProductCard } from '@/components/ProductCard';
 import { SearchBar } from '@/components/SearchBar';
 import { useProducts } from '@/hooks/useProducts';
 import { useCartStore } from '@/store/cartStore';
+import { useToastStore } from '@/store/toastStore';
 import type { Product } from '@/types';
 
 export default function ProductsScreen() {
   const router = useRouter();
   const { products, isLoading, nextCursor, loadNextPage } = useProducts();
   const addItem = useCartStore((s) => s.addItem);
+  const showToast = useToastStore((s) => s.show);
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
 
   const displayProducts = searchResults ?? products;
@@ -22,8 +24,9 @@ export default function ProductsScreen() {
   const handleAddToCart = useCallback(
     (product: Product) => {
       addItem(product.id, 1);
+      showToast('Added to cart');
     },
-    [addItem]
+    [addItem, showToast]
   );
 
   const openProduct = useCallback(

@@ -3,6 +3,7 @@ import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from 'rea
 import { useLocalSearchParams } from 'expo-router';
 import { useProductStore } from '@/store/productStore';
 import { useCartStore } from '@/store/cartStore';
+import { useToastStore } from '@/store/toastStore';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -11,10 +12,17 @@ export default function ProductDetailScreen() {
   const product = useProductStore((s) => s.products.find((p) => p.id === productId));
   const bumpProduct = useProductStore((s) => s.bumpProduct);
   const addItem = useCartStore((s) => s.addItem);
+  const showToast = useToastStore((s) => s.show);
 
   const handleBump = () => {
     if (!product) return;
     bumpProduct(product.id, product.version);
+  };
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    addItem(product.id, 1);
+    showToast('Added to cart');
   };
 
   if (!product) return <Text style={styles.error}>Product not found</Text>;
@@ -36,7 +44,7 @@ export default function ProductDetailScreen() {
         <Text style={styles.meta}>Version: {product.version}</Text>
         <Text style={styles.meta}>Updated: {new Date(product.updated_at).toLocaleString()}</Text>
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.addBtn} onPress={() => addItem(product.id, 1)}>
+          <TouchableOpacity style={styles.addBtn} onPress={handleAddToCart}>
             <Text style={styles.btnText}>Add to Cart</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.bumpBtn} onPress={handleBump}>
