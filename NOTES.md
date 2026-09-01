@@ -76,6 +76,31 @@ time the tab regains focus.
 Adding to the cart gave no confirmation, so I added a small non-blocking "Added
 to cart" toast message.
 
+### Payment endpoint behaviour
+
+`POST /orders/:id/pay` fails at random (~30%), and a failure is final: the
+backend sets the order to `failed` and then rejects any further pay on it with a
+400 (`order_not_in_draft`), so there's no retrying the same order - you'd have to
+place a new one.
+
+Handling on the client:
+
+- Both the orders list and the order detail screen guard against a rapid
+  double-tap - while a pay is in flight the button is disabled and shows
+  "Processing…", so you can't fire two payments at the same order.
+- The 400 is surfaced properly (via an `ApiError` carrying the server's error
+  code) rather than swallowed into a generic message. Paying an order that's
+  already been handled - paid or failed, including paid on another device -
+  shows "this order can no longer be paid" and refreshes, instead of looking
+  like a network failure.
+- A genuine payment failure says so plainly and points the user at placing a new
+  order, since the order is now terminal. Status is colour-coded throughout
+  (draft / paid / failed).
+
+I didn't add a retry button - it would only 400 against the fixed backend - and
+left the live cross-device order status (the `order_update` WebSocket broadcast)
+out of scope.
+
 ## Features
 
 ### Offline cache

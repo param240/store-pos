@@ -10,6 +10,17 @@ export class ConflictError extends Error {
   }
 }
 
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  constructor(status: number, code?: string) {
+    super(code || `HTTP ${status}`);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -111,7 +122,15 @@ class ApiClient {
     const res = await fetch(`${this.baseUrl}/orders/${orderId}/pay`, {
       method: 'POST',
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      let code: string | undefined;
+      try {
+        code = (await res.json()).error;
+      } catch {
+        // no JSON body
+      }
+      throw new ApiError(res.status, code);
+    }
     return res.json();
   }
 

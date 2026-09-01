@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { api } from '@/services/api';
+import { api, ApiError } from '@/services/api';
 import type { Order } from '@/types';
 
 export default function OrderDetailScreen() {
@@ -29,11 +29,18 @@ export default function OrderDetailScreen() {
       const result = await api.payOrder(order.id);
       Alert.alert(
         result.payment_status === 'success' ? 'Payment Successful' : 'Payment Failed',
-        `Order is now: ${result.order_status}`
+        result.payment_status === 'success'
+          ? `Order is now: ${result.order_status}`
+          : 'The payment did not go through. This order is now marked failed - place a new order to try again.'
       );
       loadOrder();
-    } catch {
-      Alert.alert('Error', 'Payment request failed');
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'order_not_in_draft') {
+        Alert.alert('Cannot pay', 'This order can no longer be paid - it may already be paid or failed.');
+        loadOrder();
+      } else {
+        Alert.alert('Error', 'Payment request failed. Check your connection and try again.');
+      }
     } finally {
       setPaying(false);
     }

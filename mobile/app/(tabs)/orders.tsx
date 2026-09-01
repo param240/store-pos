@@ -1,12 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { api } from '@/services/api';
+import { api, ApiError } from '@/services/api';
 import { useCartStore } from '@/store/cartStore';
 import type { Order } from '@/types';
 
 export default function OrdersScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [payingId, setPayingId] = useState<number | null>(null);
   const deviceId = useCartStore((s) => s.deviceId);
 
   const loadOrders = async () => {
@@ -26,15 +27,25 @@ export default function OrdersScreen() {
   );
 
   const handlePay = async (orderId: number) => {
+    if (payingId !== null) return;
+    setPayingId(orderId);
     try {
       const result = await api.payOrder(orderId);
       Alert.alert(
         result.payment_status === 'success' ? 'Payment successful' : 'Payment failed',
-        `Order status: ${result.order_status}`
+        result.payment_status === 'success'
+          ? `Order status: ${result.order_status}`
+          : 'The payment did not go through. This order is now marked failed - place a new order to try again.'
       );
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'order_not_in_draft') {
+        Alert.alert('Cannot pay', 'This order can no longer be paid - it may already be paid or failed.');
+      } else {
+        Alert.alert('Error', 'Payment request failed. Check your connection and try again.');
+      }
+    } finally {
+      setPayingId(null);
       loadOrders();
-    } catch {
-      Alert.alert('Error', 'Payment request failed');
     }
   };
 
@@ -58,8 +69,12 @@ export default function OrdersScreen() {
                 {item.status.toUpperCase()}
               </Text>
               {item.status === 'draft' && (
-                <TouchableOpacity style={styles.payBtn} onPress={() => handlePay(item.id)}>
-                  <Text style={styles.payBtnText}>Pay</Text>
+                <TouchableOpacity
+                  style={[styles.payBtn, payingId === item.id && styles.payBtnDisabled]}
+                  onPress={() => handlePay(item.id)}
+                  disabled={payingId === item.id}
+                >
+                  <Text style={styles.payBtnText}>{payingId === item.id ? 'Processing…' : 'Pay'}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -82,6 +97,7 @@ const styles = StyleSheet.create({
   right: { alignItems: 'flex-end' },
   status: { fontWeight: '700', fontSize: 14 },
   payBtn: { backgroundColor: '#1976d2', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6, marginTop: 4 },
+  payBtnDisabled: { backgroundColor: '#90caf9' },
   payBtnText: { color: '#fff', fontWeight: '600' },
   empty: { textAlign: 'center', color: '#9e9e9e', marginTop: 40, fontSize: 16 },
 });
