@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { useProductStore } from '@/store/productStore';
 import { useCartStore } from '@/store/cartStore';
@@ -29,7 +30,12 @@ export default function ProductDetailScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Image source={{ uri: `https://picsum.photos/seed/${product.id}/600/300` }} style={styles.image} />
+      <Image
+        source={`https://picsum.photos/seed/${product.id}/600/300`}
+        style={styles.image}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+      />
       <View style={styles.content}>
         <Text style={styles.name}>{product.name}</Text>
         <Text style={styles.price}>${product.price.toFixed(2)}</Text>

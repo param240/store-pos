@@ -114,6 +114,14 @@ chunks because a single 5000-item blob can blow past Android's AsyncStorage
 per-value size limit. Lives mostly in `store/productStore.ts`, wired up in
 `app/_layout.tsx`.
 
+Product images are part of the offline story too. They come from picsum.photos,
+and with the default RN Image every row that scrolled into view offline fired a
+request that failed and retried through Android's native image pipeline, which
+made scrolling sluggish while offline. Switched to `expo-image` with a
+memory-disk cache, so images seen once are served from disk (visible offline, no
+network churn) and uncached ones show a placeholder instead of hammering. That
+smoothed out offline scrolling and means cached imagery survives a network drop.
+
 ### A note on storage (why AsyncStorage, for now)
 
 The catalog is cached in AsyncStorage, written in chunks. The chunking isn't
@@ -226,12 +234,6 @@ the record, how I'd do them:
   `[UIApplication sharedApplication].idleTimerDisabled` on the main queue
   (`requiresMainQueueSetup`), exposed through `RCT_EXPORT_METHOD` so JS can call
   `NativeModules.RNKeepAliveManager.enable()` during operating hours.
-
-**Product images are remote.** Cards load images from picsum.photos, so they
-won't show while offline even though the catalog data does. Real product imagery
-would want to be cached on disk (e.g. expo-image with its cache, or prefetching
-into the file system) - out of scope here, but worth flagging for the offline
-story.
 
 **Backend left untouched** per the README. A few things I worked around rather
 than fixed at the source: the cursor pagination off-by-one, `/products?search=`

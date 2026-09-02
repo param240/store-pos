@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import type { Product } from '@/types';
 
 interface Props {
@@ -13,7 +14,14 @@ export const ProductCard = memo(function ProductCard({ product, onPress, onAddTo
 
   return (
     <TouchableOpacity style={styles.card} onPress={() => onPress?.(product)}>
-      <Image source={{ uri: imageUrl }} style={styles.image} />
+      <Image
+        source={imageUrl}
+        style={styles.image}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={0}
+        recyclingKey={String(product.id)}
+      />
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={2}>{product.name}</Text>
         <Text style={styles.price}>${product.price.toFixed(2)}</Text>
@@ -37,7 +45,7 @@ export const ProductCard = memo(function ProductCard({ product, onPress, onAddTo
 
 const styles = StyleSheet.create({
   card: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 8, marginBottom: 8, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
-  image: { width: 100, height: 100 },
+  image: { width: 100, height: 100, backgroundColor: '#eef1f4' },
   info: { flex: 1, padding: 8 },
   name: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
   price: { fontSize: 16, fontWeight: '700', color: '#2e7d32' },
