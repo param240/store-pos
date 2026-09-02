@@ -9,6 +9,10 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppState } from '@/hooks/useAppState';
 import { Toast } from '@/components/Toast';
 
+if (__DEV__) {
+  require('../ReactotronConfig');
+}
+
 export default function RootLayout() {
   const initDeviceId = useCartStore((s) => s.initDeviceId);
   const lastSyncVersion = useProductStore((s) => s.lastSyncVersion);

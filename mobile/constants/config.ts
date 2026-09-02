@@ -1,5 +1,15 @@
-export const API_URL = 'http://localhost:8080';
-export const WS_URL = 'ws://localhost:8080';
+import Constants from 'expo-constants';
+
+// Talk to the same machine that's serving Metro, so the API works on the iOS
+// simulator, the Android emulator, and physical devices without hardcoding an
+// IP. `localhost` only resolves to the dev machine on the iOS simulator - on the
+// Android emulator it points at the emulator itself, which is why calls failed
+// there. For a real build, point this at the deployed API instead.
+const devHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const API_HOST = devHost ?? 'localhost';
+
+export const API_URL = `http://${API_HOST}:8080`;
+export const WS_URL = `ws://${API_HOST}:8080`;
 export const POLL_INTERVAL_MS = 5000;
 export const PAGE_SIZE = 50;
 
